@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>tSNEJS demo</title>
+
+<script src="jquery-1.8.3.min.js"></script>
+<script src="d3.min.js"></script>
+<script src="tsne.js"></script>
+<link href='http://fonts.googleapis.com/css?family=Roboto:400,300' rel='stylesheet' type='text/css'>
+
+<!-- JS syntax highlighting -->
+<script type="text/javascript" src="syntaxhighlighter_3.0.83/scripts/shCore.js"></script>
+<script type="text/javascript" src="syntaxhighlighter_3.0.83/scripts/shBrushJScript.js"></script>
+<link type="text/css" rel="stylesheet" href="syntaxhighlighter_3.0.83/styles/shCoreDefault.css"/>
+<script type="text/javascript">SyntaxHighlighter.all();</script>
+<style>
+.syntaxhighlighter {
+  width: 100% !important;
+  margin: 1em 0 1em 0 !important;
+  position: relative !important;
+  overflow: hidden !important;
+  font-size: 14px !important; 
+}
+</style>
+
+<!-- Tracking code -->
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-3698471-13']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+<style>
+body {
+  font-family: 'Roboto', sans-serif;
+  color: #333;
+  font-weight: 300;
+  font-size: 16px;
+}
+svg {
+  border: 1px solid #333;
+}
+#wrap {
+  width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+#embed {
+  margin-top: 20px;
+}
+h1 {
+  text-align: center;
+  font-weight: normal;
+}
+.tt {
+  margin-top: 10px;
+  background-color: #EEE;
+  border-bottom: 1px solid #333;
+  padding: 5px;
+}
+.txth {
+  color: #F55;
+}
+.cit {
+  font-family: courier;
+  padding-left: 20px;
+  font-size: 14px;
+}
+</style>
+
+<script>
+
+var opt = {epsilon: 10, perplexity: 3};
+var T = new tsnejs.tSNE(opt); // create a tSNE instance
+
+var Y;
+
+var data;
+
+function updateEmbedding() {
+  var Y = T.getSolution();
+  svg.selectAll('.u')
+    .data(data.users)
+    .attr("transform", function(d, i) { return "translate(" +
+                                          ((Y[i][0]*20*ss + tx) + 400) + "," +//400
+                                          ((Y[i][1]*20*ss + ty) + 300) + ")"; });  //300
+}
+
+var svg;
+function drawEmbedding() {
+    $("#embed").empty();
+    var div = d3.select("#embed");
+
+    // get min and max in each column of Y
+    var Y = T.Y;
+    
+    svg = div.append("svg") // svg is global
+    .attr("width", 1400) /// 800*600
+    .attr("height", 1300);
+
+    var g = svg.selectAll(".b")
+      .data(data.users)
+      .enter().append("g")
+      .attr("class", "u");
+    
+    g.append("svg:image")
+      .attr('x', 0)
+      .attr('y', 2)
+      .attr('width', 48) //48
+      .attr('height', 48) //48
+      .attr("xlink:href", function(d) { return "scrape/imgs/" + d.substring(0); })
+
+    g.append("text")
+      .attr("text-anchor", "top")
+      .attr("font-size", 12)
+      .attr("fill", "#333")
+      .text(function(d) { return d; });
+
+    var zoomListener = d3.behavior.zoom()
+      .scaleExtent([0.1, 10])
+      .center([0,0])
+      .on("zoom", zoomHandler);
+    zoomListener(svg);
+}
+
+var tx=0, ty=0;
+var ss=1;
+function zoomHandler() {
+  tx = d3.event.translate[0];
+  ty = d3.event.translate[1];
+  ss = d3.event.scale;
+}
+
+function step() {
+  for(var k=0;k<1;k++) {
+    T.step(); // do a few steps
+  }
+  updateEmbedding();
+}
+
+$(window).load(function() {
+
+  $.getJSON( "scrape/out2.json", function( j ) {
+    data = j;
+    T.initDataDist(data.mat); // init embedding
+    drawEmbedding(); // draw initial embedding
+
+    //T.debugGrad();
+    setInterval(step, 0);
+    //step();
+
+  });
+});
+
+</script>
+
+</head>
+
+<body>
+<a href="https://github.com/karpathy/tsnejs"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"></a>
+
+<div id="wrap">
+<h1>tSNEJS demo</h1>
+<div class="tt">Intro</div>
+<div class="sec">
+  t-SNE is a visualization algorithm that embeds things in 2 or 3 dimensions according to some desired distances. If you have some data and you can measure their pairwise differences, t-SNE visualization can help you identify various clusters.
+</div>
+
+<div class="tt">Example</div>
+<div class="sec">
+  In the example below, we identified 500 most followed accounts on Twitter, downloaded 200 of their tweets and computed distances similarities between them based on the types of things they talk about (bigram tfidf dot products). These similarities are then fed to t-SNE and visualized in 2 dimensions. People who use similar words and phrases will be nearby in the visualization. I documented the creation of this demo in a <a href="http://karpathy.github.io/2014/07/02/visualizing-top-tweeps-with-t-sne-in-Javascript/">blog post</a>.
+
+  <br><br> <span class="txth">Go ahead, pan and zoom around with mouse!</span>
+  <br> (note if nothing is showing up: it can take a while to load all images...)
+
+</div>
+<div id="embed"></div>
+
+<div class="tt">Second Example</div>
+<div class="sec">
+  In a second example, we take word embeddings that are trained using an unsupervised learning algorithm and visualize them using t-SNE. Head <a href="wordvecs.html">over here</a> to see it!
+</div>
+
+<div class="tt">Javascript Library</div>
+<div class="sec">
+  The tSNEJS library implements t-SNE algorithm and can be downloaded from <a href="https://github.com/karpathy/tsnejs">Github</a>. The API looks as follows:
+
+<!--<pre class="brush: js; toolbar: false;">
+var opt = {epsilon: 3}; // epsilon is learning rate (10 = default)
+var tsne = new tsnejs.tSNE(opt); // create a tSNE instance
+
+// initialize data. Here we have 3 points and some example pairwise dissimilarities
+var dists = [[1.0, 0.1, 0.2], [0.1, 1.0, 0.3], [0.2, 0.1, 1.0]];
+tsne.initDataDist(dists);
+
+for(var k = 0; k &lt 500; k++) {
+  tsne.step(); // every time you call this, solution gets better
+}
+
+var Y = tsne.getSolution(); // Y is an array of 2-D points that you can plot
+</pre>-->
+
+</div>
+
+<div class="tt">Embed your CSV data with Web Demo</div>
+<div class="sec">
+  Using the <a href="csvdemo.html">web demo here</a> you can run t-SNE on your data, in CSV format.
+</div>
+
+<div class="tt">Algorithm Details</div>
+<div class="sec">
+  The algorithm is described in this paper:
+
+  <div class="cit">
+  <br>L.J.P. van der Maaten and G.E. Hinton. 
+  <br>Visualizing High-Dimensional Data Using t-SNE. Journal of Machine Learning Research 9(Nov):2579-2605, 2008. 
+  <br><a href="http://jmlr.csail.mit.edu/papers/volume9/vandermaaten08a/vandermaaten08a.pdf">[ PDF ]</a> <a href="http://jmlr.csail.mit.edu/papers/volume9/vandermaaten08a/vandermaaten08a-supplement.pdf">[ Supplemental Material (24MB) ]</a>
+  </div>
+
+  <br>
+  In short, the algorithm computes a matrix P that is related to distances between all elements in the original space. The variables of the problem are the embedding point locations, which similarily rise to their own distance matrix Q. The algorithm's cost function then minimizes the difference between P and Q. 
+
+</div>
+
+<div class="tt">About</div>
+<div class="sec">
+  Maintained by <a href="https://twitter.com/karpathy">@karpathy</a>.
+</div>
+
+</div>
+
+<br><br><br><br>
+
+</body>
+
+</html>
